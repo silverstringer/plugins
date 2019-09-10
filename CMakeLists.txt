@@ -10,5 +10,6 @@ add_library(task.cpp
         ${HEADERS} rabbitmq_worker.hpp thread_safe.hpp SimplePocoHandler.h task.h)
 
 #find_package(Poco REQUIRED Foundation Net NetSSL)
+add_subdirectory( library )
 add_executable(task  task.cpp SimplePocoHandler.cpp  rabbitmq_worker.cpp)
 target_link_libraries(task amqpcpp PocoNet PocoFoundation)
