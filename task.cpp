@@ -82,7 +82,7 @@ void task_impl::rpc_listen() {
         }
     }
     catch (exception &ex) {
-        printf(ex.what());
+        cout<<ex.what();
 
     }
 }
@@ -123,7 +123,7 @@ void task_impl::rb_chanel(string data) {
         handler.loop();
     }
     catch (exception &ex) {
-        printf(ex.what());
+        cout<<ex.what();
 
     }
 }
