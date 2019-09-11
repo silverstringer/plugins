@@ -1,3 +1,6 @@
 [submodule "library/AMQP-CPP"]
 	path = library/AMQP-CPP
 	url = https://github.com/CopernicaMarketingSoftware/AMQP-CPP.git
+[submodule "library/poco"]
+	path = library/poco
+	url = https://github.com/pocoproject/poco.git
