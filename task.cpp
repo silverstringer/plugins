@@ -9,9 +9,18 @@
 #include <algorithm>
 #include <regex>
 #include <iostream>
+#include <exception>
+#include <vector>
+#include <functional>
 
-
-using namespace std;
+namespace pl {
+using std::cout;
+using std::function;
+using std::thread;
+using std::mutex;
+using std::shared_ptr;
+using std::exception;
+using std::vector;
 using RB_client = function<void(string &data)>;
 
 void rb_chanel_data(string data) {
@@ -40,8 +49,11 @@ class task_impl {
 
 public:
     void rpc_server();
+
     void rpc_listen();
+
     void rb_chanel(string data);
+
     void send();
 
 private:
@@ -51,6 +63,9 @@ private:
     uint32_t queue_port = 5672;
     string queue_login = "guest";
     string queue_passwd = "guest";
+    mutex m_mutex;
+    vector<std::exception_ptr> m_exceptions;
+
 
 };
 
@@ -78,17 +93,18 @@ void task_impl::rpc_listen() {
             auto block = temp;
 
         } else {
-            printf("Command not found \n");
+            cout << "Command not found" << "\n";
         }
     }
-    catch (exception &ex) {
-        cout<<ex.what();
+    catch (...) {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_exceptions.push_back(std::current_exception());
 
     }
 }
 
 void task_impl::rpc_server() {
-    q_from_rabbit = make_shared<thread_safe::threadsafe_queue<string>>();
+    q_from_rabbit = std::make_shared<thread_safe::threadsafe_queue<string>>();
 
     /// 1-st thread starts
     thread t_rabbit([&](shared_ptr<thread_safe::threadsafe_queue<string>> queue_rabbit) {
@@ -101,7 +117,7 @@ void task_impl::rpc_server() {
     if (t_rabbit.joinable())
         t_rabbit.detach();
 
-    printf("Rabbit runs away! \n");
+    cout << "Rabbit runs away!" << "\n";
 }
 
 
@@ -122,9 +138,19 @@ void task_impl::rb_chanel(string data) {
         });
         handler.loop();
     }
-    catch (exception &ex) {
-        cout<<ex.what();
-
+    catch (...) {
+        m_exceptions.clear();
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_exceptions.push_back(std::current_exception());
+        for (auto &ex: m_exceptions) {
+            try {
+                if (ex != nullptr)
+                    std::rethrow_exception(ex);
+            }
+            catch (const std::exception &ex) {
+                cout << ex.what() << std::endl;
+            }
+        }
     }
 }
 
@@ -138,32 +164,35 @@ void task_impl::send() {
     }
 
     string wrapper = "test";
-    th_data = new std::thread([&](string data) { rb_chanel(data); }, wrapper);
-    cout<<" Send to rabbit::"<<wrapper<<"\n";
+    th_data = new thread([&](string data) { rb_chanel(data); }, wrapper);
+    cout << " Send to rabbit::" << wrapper << "\n";
 //            th_data = new std::thread([&](fc::mutable_variant_object data) { rb_res(data);},wrapper);
 }
 
-void task::plugin_startup() {
 
-    my->rpc_server();
-    my->rpc_listen();
 
-    my->th = nullptr;
-    my->th_data = nullptr;
+
+    task::task() : my(new task_impl()) {}
+
+    task::~task() {}
+
+    void task::send() { my->send(); }
+
+    void task::rpc_server() { my->rpc_server(); }
+
+    void task::rpc_listen() { my->rpc_listen(); }
+
+    void task::plugin_startup() {
+        my->rpc_server();
+        my->rpc_listen();
+        my->th = nullptr;
+        my->th_data = nullptr;
+    }
 }
-
-
-task::task() : my(new task_impl()) {}
-task::~task() {}
-
-void task::send() { my->send(); }
-void task::rpc_server() { my->rpc_server(); }
-void task::rpc_listen() { my->rpc_listen(); }
-
 
 int main() {
 
-    auto rt = std::make_shared<task>();
+    auto rt = std::make_shared<pl::task>();
     rt->plugin_startup();
 
     while (1) {

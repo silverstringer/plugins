@@ -3,7 +3,7 @@
 #pragma once
 
 #include <memory>
-
+namespace pl {
     class task {
     public:
         task();
@@ -15,5 +15,6 @@
     private:
         std::unique_ptr<class task_impl> my;
     };
+}
 
 #endif //PLUGINS_TASK_H
