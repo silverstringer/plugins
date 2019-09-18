@@ -1,0 +1,9 @@
+#Tools
+
+
+# IDEs
+/*.idea
+
+#Build
+/build
+/cmake-build-debug

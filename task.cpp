@@ -54,21 +54,6 @@ private:
 
 };
 
-
-//    void task_impl::advanced() {
-//            if(th != nullptr){
-//                if(th->joinable()) {
-//                    th->join();
-//                    delete (th);
-//                }
-//
-//            }
-//
-//            wrapper["data"] = resource_user;
-//        th = new std::thread([&](fc::mutable_variant_object data) {rb_chanel(data);},wrapper);
-//
-//    }
-
 void task_impl::rpc_listen() const {
 
     try {
@@ -115,10 +100,10 @@ void task_impl::rb_chanel(string data)  {
 
         channel.onReady([&]() {
             if (handler.connected()) {
-                channel.publish("", "hello", data);
+                channel.publish("", rb_param.queue_name, data);
                 handler.quit();
             } else {
-                printf("Handler not connected");
+                cout<<"Handler not connected";
             }
         });
         handler.loop();
@@ -127,7 +112,7 @@ void task_impl::rb_chanel(string data)  {
         m_exceptions.clear();
         std::lock_guard<std::mutex> lock(m_mutex);
         m_exceptions.push_back(std::current_exception());
-        for (auto &ex: m_exceptions) {
+        for (const auto &ex: m_exceptions) {
             try {
                 if (ex != nullptr)
                     std::rethrow_exception(ex);
@@ -140,17 +125,16 @@ void task_impl::rb_chanel(string data)  {
 }
 
 
-void task_impl::send(const string &data ="test") {
+void task_impl::send(const string &data) {
     if (th_data != nullptr) {
         if (th_data->joinable()) {
             th_data->join();
             delete (th_data);
         }
     }
-
-    string wrapper = "test";
-    th_data = new thread([&](string data) { rb_chanel(data); }, wrapper);
-    cout << " Send to rabbit::" << wrapper << "\n";
+    cout << " Send to rabbit::" << data << "\n";
+    th_data = new thread([&](string data) { rb_chanel(data); }, data);
+    cout << " Send to rabbit::" << data << "\n";
 //            th_data = new std::thread([&](fc::mutable_variant_object data) { rb_res(data);},wrapper);
 }
 
@@ -161,7 +145,7 @@ void task_impl::send(const string &data ="test") {
 
     task::~task() {}
 
-    void task::send(const string &data) const { my->send(data); }
+    void task::send_rb(const string &data) const { my->send(data); }
 
     void task::rpc_server() { my->rpc_server(); }
 
@@ -181,7 +165,7 @@ int main() {
     rt->plugin_startup();
 
     while (1) {
-        rt->send("");
+        rt->send_rb("test");
         std::this_thread::sleep_for(std::chrono::seconds(10));
     }
 

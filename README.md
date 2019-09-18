@@ -22,3 +22,9 @@
   cmake .. 
 
   make -j4
+  
+## Usage
+Start rabbitmq-server with default parametrs
+
+send message to queue
+
