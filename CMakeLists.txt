@@ -14,12 +14,14 @@ include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/library/AMQP-CPP/include)
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/library/poco/Net/include)
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/library/poco/Foundation/include)
 
-add_library(task.cpp
-        rabbitmq_worker.cpp
-        SimplePocoHandler.cpp
-        ${HEADERS} rabbitmq_worker.hpp thread_safe.hpp SimplePocoHandler.h task.h)
 
-#find_package(Poco REQUIRED Foundation Net NetSSL)
+set(SOURCE_FILES
+        task.cpp
+        rabbitmq_worker.cpp
+        SimplePocoHandler.cpp)
+
+#add_library(${SOURCE_FILES} ${HEADERS} rabbitmq_worker.hpp thread_safe.hpp SimplePocoHandler.h task.h)
+
 add_subdirectory( library )
-add_executable(task  task.cpp SimplePocoHandler.cpp  rabbitmq_worker.cpp)
-target_link_libraries(task amqpcpp PocoNet PocoFoundation)
+add_executable(plugins ${SOURCE_FILES})
+target_link_libraries(plugins amqpcpp PocoNet PocoFoundation)
