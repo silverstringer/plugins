@@ -8,19 +8,19 @@
 namespace pl {
     using namespace boost;
     namespace po = boost::program_options;
- class task {
+ class task  {
     public:
-        task();
+        explicit task();
         task(const task&) =delete;
         task(const task&&) =delete;
         task& operator =(const task&)=delete;
         virtual ~task();
-        void set_program_options(po::options_description&, po::options_description& cfg);
-        void plugin_initialize(const po::variables_map& options);
-        void rpc_server();//command from task and next handler
-        void rpc_listen() const;
-        void plugin_startup();
+        void plugin_startup(const po::variables_map &options);
         void send_rb(const std::string &data) const;
+ private:
+     void plugin_initialize(const po::variables_map& options);
+     void rpc_server();//command from task and next handler
+     void rpc_listen() const;
  private:
         std::unique_ptr<class task_impl> my;
     };

@@ -27,18 +27,13 @@ namespace pl {
     class task_impl {
         thread *th, *th_data;
         shared_ptr<thread_safe::threadsafe_queue<string>> q_from_rabbit;
-
         friend class task;
-
     public:
-        void rpc_server();
-
-        void rpc_listen() const;
-
-        void rb_chanel(string data);
-
         void send(const string &data);
-
+    private:
+        void rpc_server();
+        void rpc_listen() const;
+        void rb_chanel(string data);
     private:
         struct {
             string queue_host = "localhost";
@@ -50,8 +45,7 @@ namespace pl {
         } rb_param;
         mutable mutex m_mutex;
         mutable vector<std::exception_ptr> m_exceptions;
-        boost::program_options::variables_map _options;
-
+        po::variables_map _options;
 
     };
 
@@ -151,24 +145,16 @@ namespace pl {
 
     void task::rpc_listen() const { my->rpc_listen(); }
 
-    void task::plugin_startup() {
+    void task::plugin_startup(const po::variables_map &options) {
+        plugin_initialize(options);
         my->rpc_server();
         my->rpc_listen();
         my->th = nullptr;
         my->th_data = nullptr;
     }
 
-    void task::set_program_options(po::options_description &, po::options_description &cfg) {
-        cfg.add_options()
-                ("queue-name", po::value<string>()->default_value("hello"), "Name for queue")
-                ("queue-port", po::value<uint32_t>()->default_value(5672), "Port for queue.")
-                ("queue-host", po::value<string>()->default_value("localhost"), "Host for queue")
-                ("login", po::value<string>()->default_value("guest"), "Login for cleints")
-                ("passwd", po::value<string>()->default_value("guest"), "Passwd for clients");
 
-    }
-
-    void task::plugin_initialize(const boost::program_options::variables_map &options) {
+    void task::plugin_initialize(const po::variables_map &options) {
         my->_options = &options;
         my->rb_param.queue_name = options.at("queue-name").as<string>();
         my->rb_param.queue_port = options.at("queue-port").as<uint32_t>();
@@ -190,42 +176,35 @@ namespace pl {
 
     }
 
-    void plugin_initialize(const boost::program_options::variables_map &options) {
-        boost::program_options::variables_map _options = &options;
-        string queue_name = options.at("queue-name").as<string>();
-        auto queue_port = options.at("queue-port").as<uint32_t>();
-        auto queue_host = options.at("queue-host").as<string>();
-        auto queue_passwd = options.at("passwd").as<string>();
-        auto queue_login = options.at("login").as<string>();
 
-    }
+    po::variables_map parse_options(int ac, char *av[]) {
+        po::options_description desc("Allowed options");
+        set_program_options(desc);
+        po::variables_map vm;
 
-    void console_menu(int ac, char *av[]) {
+        po::store(po::parse_command_line(ac, av, desc), vm);
+        po::notify(vm);
 
-        boost::program_options::options_description desc("Allowed options");
-        pl::set_program_options(desc);
-        pl::po::variables_map vm;
-        pl::po::parsed_options parsed = pl::po::command_line_parser(ac, av).options(desc).allow_unregistered().run();
-        pl::po::store(parsed, vm);
-        pl::po::notify(vm);
+//        po::parsed_options parsed = po::command_line_parser(ac, av).options(desc).allow_unregistered().run();
+//        po::store(parsed, vm);
+//        po::notify(vm);
 
         if (vm.count("help")) {
             std::cout << desc << std::endl;
 
         }
+        return vm;
 
     };
-
 
 }
 
 int main(int ac, char *av[]) {
 
-    pl::console_menu(ac, av);
-    auto rt = std::make_shared<pl::task>();
-    rt->plugin_startup();
-
-    while (1) {
+   auto options = pl::parse_options(ac, av);
+   auto rt = std::make_shared<pl::task>();
+   rt->plugin_startup(options);
+   while (1) {
         rt->send_rb("test");
         std::this_thread::sleep_for(std::chrono::seconds(10));
     }
