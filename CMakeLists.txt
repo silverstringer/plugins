@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 
 project(plugins)
+message(STATUS "Project Plugins")
 
 set (VERSION_MAJOR 0)
 set (VERSION_MINOR 1)
@@ -41,3 +42,4 @@ set(SOURCE_FILES
 add_subdirectory( library )
 add_executable(plugins ${SOURCE_FILES})
 target_link_libraries(plugins amqpcpp PocoNet PocoFoundation  ${Boost_LIBRARIES})
+

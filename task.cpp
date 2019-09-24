@@ -20,9 +20,8 @@ namespace pl {
     using std::mutex;
     using std::shared_ptr;
     using std::exception;
+    using std::exception_ptr;
     using std::vector;
-    using RB_client = function<void(string &data)>;
-
 
     class task_impl {
         thread *th, *th_data;
@@ -30,10 +29,11 @@ namespace pl {
         friend class task;
     public:
         void send(const string &data);
+        string m_data ="test";
     private:
-        void rpc_server();
+        void rb_worker();
         void rpc_listen() const;
-        void rb_chanel(string data);
+        void rb_publish(string data);
     private:
         struct {
             string queue_host = "localhost";
@@ -44,8 +44,8 @@ namespace pl {
             string queue_passwd = "guest";
         } rb_param;
         mutable mutex m_mutex;
-        mutable vector<std::exception_ptr> m_exceptions;
-        po::variables_map _options;
+        mutable vector<exception_ptr> m_exceptions;
+        variables_map _options;
 
     };
 
@@ -68,7 +68,7 @@ namespace pl {
         }
     }
 
-    void task_impl::rpc_server() {
+    void task_impl::rb_worker() {
         q_from_rabbit = std::make_shared<thread_safe::threadsafe_queue<string>>();
 
         /// 1-st thread starts
@@ -87,7 +87,7 @@ namespace pl {
     }
 
 
-    void task_impl::rb_chanel(string data) {
+    void task_impl::rb_publish(string data) {
 
         try {
             SimplePocoHandler handler(rb_param.queue_host, rb_param.queue_port);
@@ -128,66 +128,33 @@ namespace pl {
                 delete (th_data);
             }
         }
-        cout << " Send to rabbit::" << data << "\n";
-        th_data = new thread([&](string data) { rb_chanel(data); }, data);
-        cout << " Send to rabbit::" << data << "\n";
+        m_data = data;
+        th_data = new thread([&](string data) { rb_publish(m_data); }, m_data);
+        cout << " Send to rabbit::" << m_data<< "\n";
 //            th_data = new std::thread([&](fc::mutable_variant_object data) { rb_res(data);},wrapper);
     }
 
 
-    task::task() : my(new task_impl()) {}
 
-    task::~task() {}
-
-    void task::send_rb(const string &data) const { my->send(data); }
-
-    void task::rpc_server() { my->rpc_server(); }
-
-    void task::rpc_listen() const { my->rpc_listen(); }
-
-    void task::plugin_startup(const po::variables_map &options) {
-        plugin_initialize(options);
-        my->rpc_server();
-        my->rpc_listen();
-        my->th = nullptr;
-        my->th_data = nullptr;
-    }
-
-
-    void task::plugin_initialize(const po::variables_map &options) {
-        my->_options = &options;
-        my->rb_param.queue_name = options.at("queue-name").as<string>();
-        my->rb_param.queue_port = options.at("queue-port").as<uint32_t>();
-        my->rb_param.queue_host = options.at("queue-host").as<string>();
-        my->rb_param.queue_passwd = options.at("passwd").as<string>();
-        my->rb_param.queue_login = options.at("login").as<string>();
-
-    }
-
-
-    void set_program_options(po::options_description &cfg) {
+    void console_menu::set_program_options(options_description &cfg) {
         cfg.add_options()
                 ("help,h", "produce help message")
                 ("queue-name", po::value<string>()->default_value("hello"), "Name for queue")
                 ("queue-port", po::value<uint32_t>()->default_value(5672), "Port for queue.")
                 ("queue-host", po::value<string>()->default_value("localhost"), "Host for queue")
                 ("login", po::value<string>()->default_value("guest"), "Login for cleints")
-                ("passwd", po::value<string>()->default_value("guest"), "Passwd for clients");
+                ("passwd", po::value<string>()->default_value("guest"), "Passwd for clients")
+                ("data", po::value<string>()->default_value("test"), "Data for rb_queue");
 
     }
 
-
-    po::variables_map parse_options(int ac, char *av[]) {
-        po::options_description desc("Allowed options");
+      variables_map console_menu::parse_options(int ac, char *av[])  {
+        options_description desc("Allowed options");
         set_program_options(desc);
-        po::variables_map vm;
+        variables_map vm;
 
         po::store(po::parse_command_line(ac, av, desc), vm);
         po::notify(vm);
-
-//        po::parsed_options parsed = po::command_line_parser(ac, av).options(desc).allow_unregistered().run();
-//        po::store(parsed, vm);
-//        po::notify(vm);
 
         if (vm.count("help")) {
             std::cout << desc << std::endl;
@@ -197,16 +164,51 @@ namespace pl {
 
     };
 
+    task::task() : my(new task_impl()),m_menu(new console_menu()) {}
+
+    task::~task() {}
+
+    void task::rb_send(const string &data) const { my->send(data); }
+
+    void task::rb_worker() { my->rb_worker(); }
+
+    void task::rpc_listen() const { my->rpc_listen(); }
+
+    void task::plugin_startup() {
+        my->rb_worker();
+        my->th = nullptr;
+        my->th_data = nullptr;
+    }
+
+    void task::run(int ac, char *av[]) {
+        auto options= m_menu->parse_options(ac,av);
+        plugin_initialize(options);
+        plugin_startup();
+
+        while (1) {
+            my->rpc_listen();
+            rb_send("test");
+            std::this_thread::sleep_for(std::chrono::seconds(10));
+        }
+    }
+
+
+
+    void task::plugin_initialize(const variables_map &options) {
+        my->_options = &options;
+        my->rb_param.queue_name = options.at("queue-name").as<string>();
+        my->rb_param.queue_port = options.at("queue-port").as<uint32_t>();
+        my->rb_param.queue_host = options.at("queue-host").as<string>();
+        my->rb_param.queue_passwd = options.at("passwd").as<string>();
+        my->rb_param.queue_login = options.at("login").as<string>();
+        my->m_data = options.at("data").as<string>();
+
+    }
+
 }
 
 int main(int ac, char *av[]) {
-
-   auto options = pl::parse_options(ac, av);
-   auto rt = std::make_shared<pl::task>();
-   rt->plugin_startup(options);
-   while (1) {
-        rt->send_rb("test");
-        std::this_thread::sleep_for(std::chrono::seconds(10));
-    }
+    auto my_plugin = std::make_shared<pl::task>();
+    my_plugin->run(ac,av);
 
 };
