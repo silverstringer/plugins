@@ -4,21 +4,40 @@
 
 #include <memory>
 #include <iostream>
+#include <boost/program_options.hpp>
 namespace pl {
-    class task {
+    namespace po = boost::program_options;
+    using options_description = boost::program_options::options_description;
+    using variables_map = boost::program_options::variables_map;
+
+    class task  {
     public:
-        task();
+        explicit task();
         task(const task&) =delete;
         task(const task&&) =delete;
         task& operator =(const task&)=delete;
-        virtual ~task();
-        void rpc_server();//command from task and next handler
-        void rpc_listen() const;
+        ~task();
+        void run(int ac, char *av[]);
+    private:
         void plugin_startup();
-        void send_rb(const std::string &data) const;
+        void plugin_initialize(const variables_map& options);
+        void rb_worker();//command from task and next handler
+        void rpc_listen() const;
+        void rb_send(const std::string &data) const;
     private:
         std::unique_ptr<class task_impl> my;
+        std::unique_ptr<class console_menu> m_menu;
     };
+
+
+    class console_menu{
+    public:
+        variables_map parse_options(int ac, char *av[]);
+    private:
+        void set_program_options(options_description &cfg);
+        friend class task;
+    };
+
 }
 
 #endif //PLUGINS_TASK_H

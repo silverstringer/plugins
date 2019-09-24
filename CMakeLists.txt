@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 
 project(plugins)
+message(STATUS "Project Plugins")
 
 set (VERSION_MAJOR 0)
 set (VERSION_MINOR 1)
@@ -10,10 +11,26 @@ set (SO_VERSION ${VERSION_MAJOR}.${VERSION_MINOR})
 set(CMAKE_CXX_STANDARD 11)
 SET(CMAKE_CXX_FLAGS -pthread)
 
+if ( Boost_INCLUDE_DIR )
+    MESSAGE("BOOST ROOT SET")
+    set(CMAKE_EXPORT_COMPILE_COMMANDS "ON")
+    set(BOOST_COMPONENTS)
+
+    list(APPEND BOOST_COMPONENTS filesystem
+            program_options
+            serialization)
+
+    find_package(Boost 1.58 REQUIRED COMPONENTS ${BOOST_COMPONENTS})
+    set( Boost_USE_STATIC_LIBS ON CACHE STRING "ON or OFF" )
+else()
+    find_package( Boost 1.67 REQUIRED )
+endif()
+
+
+
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/library/AMQP-CPP/include)
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/library/poco/Net/include)
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/library/poco/Foundation/include)
-
 
 set(SOURCE_FILES
         task.cpp
@@ -24,4 +41,6 @@ set(SOURCE_FILES
 
 add_subdirectory( library )
 add_executable(plugins ${SOURCE_FILES})
-target_link_libraries(plugins amqpcpp PocoNet PocoFoundation)
+
+target_link_libraries(plugins amqpcpp PocoNet PocoFoundation  ${Boost_LIBRARIES})
+
