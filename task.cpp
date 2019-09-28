@@ -22,10 +22,10 @@ namespace pl {
     using std::exception;
     using std::exception_ptr;
     using std::vector;
-
+    using threadsafe_queue=thread_safe::threadsafe_queue<string>;
     class task_impl {
         thread *th, *th_data;
-        shared_ptr<thread_safe::threadsafe_queue<string>> q_from_rabbit;
+        shared_ptr<threadsafe_queue> q_from_rabbit;
         friend class task;
     public:
         void send(const string &data);
@@ -46,6 +46,7 @@ namespace pl {
         mutable mutex m_mutex;
         mutable vector<exception_ptr> m_exceptions;
         variables_map _options;
+        bool quit;
 
     };
 
@@ -69,10 +70,10 @@ namespace pl {
     }
 
     void task_impl::rb_worker() {
-        q_from_rabbit = std::make_shared<thread_safe::threadsafe_queue<string>>();
+        q_from_rabbit = std::make_shared<threadsafe_queue>();
 
         /// 1-st thread starts
-        thread t_rabbit([&](shared_ptr<thread_safe::threadsafe_queue<string>> queue_rabbit) {
+        thread t_rabbit([&](shared_ptr<threadsafe_queue> queue_rabbit) {
 
             rabbitmq_worker rabbitmq_input(queue_rabbit, rb_param.queue_host, rb_param.queue_port, rb_param.queue_login,
                                            rb_param.queue_passwd, "/",
@@ -99,7 +100,7 @@ namespace pl {
                     channel.publish("", rb_param.queue_name, data);
                     handler.quit();
                 } else {
-                    cout << "Handler not connected";
+                    std::cerr << "Handler not connected";
                 }
             });
             handler.loop();
@@ -148,7 +149,7 @@ namespace pl {
 
     }
 
-      variables_map console_menu::parse_options(int ac, char *av[])  {
+    variables_map console_menu::parse_options(int ac, char *av[])  {
         options_description desc("Allowed options");
         set_program_options(desc);
         variables_map vm;
@@ -164,7 +165,7 @@ namespace pl {
 
     };
 
-    task::task() : my(new task_impl()),m_menu(new console_menu()) {}
+    task::task() : my(new task_impl()),m_menu(new console_menu()){}
 
     task::~task() {}
 
@@ -176,6 +177,7 @@ namespace pl {
 
     void task::plugin_startup() {
         my->rb_worker();
+        my->quit = false;
         my->th = nullptr;
         my->th_data = nullptr;
     }
@@ -185,13 +187,29 @@ namespace pl {
         plugin_initialize(options);
         plugin_startup();
 
-        while (1) {
-            my->rpc_listen();
-            rb_send("test");
-            std::this_thread::sleep_for(std::chrono::seconds(10));
+        try {
+            while (!my->quit){
+                my->rpc_listen();
+                rb_send("test");
+                std::this_thread::sleep_for(std::chrono::seconds(10));
+            }
+
         }
+        catch(exception &ex)
+        {
+            std::cerr<<ex.what();
+        }
+
     }
 
+/**
+ * @brief stop server for flag quiet is true
+ * @attention
+ *
+ */
+    void task::stop() {
+        my->quit = true;
+    }
 
 
     void task::plugin_initialize(const variables_map &options) {
@@ -210,5 +228,6 @@ namespace pl {
 int main(int ac, char *av[]) {
     auto my_plugin = std::make_shared<pl::task>();
     my_plugin->run(ac,av);
+
 
 };

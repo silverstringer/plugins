@@ -10,6 +10,7 @@ namespace pl {
     using options_description = boost::program_options::options_description;
     using variables_map = boost::program_options::variables_map;
 
+
     class task  {
     public:
         explicit task();
@@ -18,6 +19,7 @@ namespace pl {
         task& operator =(const task&)=delete;
         ~task();
         void run(int ac, char *av[]);
+        void stop();
     private:
         void plugin_startup();
         void plugin_initialize(const variables_map& options);
@@ -27,6 +29,7 @@ namespace pl {
     private:
         std::unique_ptr<class task_impl> my;
         std::unique_ptr<class console_menu> m_menu;
+
     };
 
 

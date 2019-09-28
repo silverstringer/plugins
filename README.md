@@ -2,9 +2,10 @@
 ## Requirements
   
 - C++11 compiler support
+- Cmake 
 - Poco
 - AMQP-CPP 
-- Cmake
+- BOOST
 
 ## Build
   git clone https://github.com/silverstringer/plugins.git
@@ -26,5 +27,6 @@
 ## Usage
 Start rabbitmq-server with default parametrs
 
-send message to queue
+1.send message to queue 
 
+2.listen to rb_queue
