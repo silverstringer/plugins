@@ -32,7 +32,14 @@ namespace pl {
 
     };
 
-
+/**
+ * @brief console menu
+ *
+ * \details
+ * parse arg command line
+     default show menu
+     set default value for rb_connection
+ */
     class console_menu{
     public:
         variables_map parse_options(int ac, char *av[]);

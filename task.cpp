@@ -203,8 +203,7 @@ namespace pl {
     }
 
 /**
- * @brief stop server for flag quiet is true
- * @attention
+ * @brief stop server: flag quit is true
  *
  */
     void task::stop() {
