@@ -7,3 +7,6 @@
 #Build
 /build
 /cmake-build-debug
+
+#Documentaion
+/doxygen

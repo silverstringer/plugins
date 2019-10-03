@@ -9,38 +9,37 @@ set (VERSION_PATCH 1)
 set (SO_VERSION ${VERSION_MAJOR}.${VERSION_MINOR})
 
 set(CMAKE_CXX_STANDARD 11)
-SET(CMAKE_CXX_FLAGS -pthread)
+set(CMAKE_CXX_FLAGS -pthread)
+#set(BUILD_DOXYGEN FALSE CACHE BOOL "Build doxygen documentation on every make")
 
-if ( Boost_INCLUDE_DIR )
+
+find_package(Boost 1.58 REQUIRED COMPONENTS
+        filesystem
+        program_options
+        serialization)
+
+if (Boost_FOUND)
+    include_directories (SYSTEM ${Boost_INCLUDE_DIR})
     MESSAGE("BOOST ROOT SET")
     set(CMAKE_EXPORT_COMPILE_COMMANDS "ON")
-    set(BOOST_COMPONENTS)
-
-    list(APPEND BOOST_COMPONENTS filesystem
-            program_options
-            serialization)
-
-    find_package(Boost 1.58 REQUIRED COMPONENTS ${BOOST_COMPONENTS})
     set( Boost_USE_STATIC_LIBS ON CACHE STRING "ON or OFF" )
-else()
-    find_package( Boost 1.67 REQUIRED )
-endif()
-
+endif ()
 
 
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/library/AMQP-CPP/include)
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/library/poco/Net/include)
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/library/poco/Foundation/include)
 
-set(SOURCE_FILES
-        task.cpp
-        rabbitmq_worker.cpp
-        SimplePocoHandler.cpp)
 
-#add_library(${SOURCE_FILES} ${HEADERS} rabbitmq_worker.hpp thread_safe.hpp SimplePocoHandler.h task.h)
+set(SOURCE_FILES
+        src/task.cpp
+        src/rabbitmq_worker.cpp
+        src/SimplePocoHandler.cpp)
+
 
 add_subdirectory( library )
 add_executable(plugins ${SOURCE_FILES})
 
 target_link_libraries(plugins amqpcpp PocoNet PocoFoundation  ${Boost_LIBRARIES})
 
+install (TARGETS plugins DESTINATION bin)
