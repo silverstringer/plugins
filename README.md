@@ -3,6 +3,7 @@
   
 - C++11 compiler support
 - Cmake 
+- Doxygen
 - Poco
 - AMQP-CPP 
 - Boost
@@ -33,3 +34,7 @@ Start rabbitmq-server with default parametrs
 1.send message to queue 
 
 2.listen to rb_queue
+
+## License
+
+[MIT](https://github.com/silverstringer/plugins/blob/master/LICENSE)
