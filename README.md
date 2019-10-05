@@ -5,7 +5,7 @@
 - Cmake 
 - Poco
 - AMQP-CPP 
-- BOOST
+- Boost
 
 ## Build
   git clone https://github.com/silverstringer/plugins.git
@@ -22,7 +22,10 @@
 
   cmake .. 
 
-  make -j4
+  make -j4 
+  
+## Install
+  make install
   
 ## Usage
 Start rabbitmq-server with default parametrs
