@@ -10,7 +10,7 @@ set (SO_VERSION ${VERSION_MAJOR}.${VERSION_MINOR})
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS -pthread)
-#set(BUILD_DOXYGEN FALSE CACHE BOOL "Build doxygen documentation on every make")
+set(BUILD_DOXYGEN FALSE )
 
 
 find_package(Boost 1.58 REQUIRED COMPONENTS
@@ -42,3 +42,32 @@ add_executable(plugins ${SOURCE_FILES})
 target_link_libraries(plugins amqpcpp PocoNet PocoFoundation  ${Boost_LIBRARIES})
 
 install (TARGETS plugins DESTINATION bin)
+
+#make package for debian-based distributions
+#cd directory build and run command  cpack
+set(CPACK_GENERATOR "DEB")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Postnikov Dmitry")
+set(CPACK_DEBIAN_PACKAGE_DESCRIPTION "C++ code for RabbitMQ")
+
+include(CPack)
+
+find_package(Doxygen)
+
+if (DOXYGEN_FOUND AND ${BUILD_DOXYGEN})
+
+    set(DOXYGEN_IN ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile)
+    set(DOXYGEN_OUT ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile)
+
+    configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
+    message("Doxygen build started")
+
+    add_custom_target( doc_doxygen ALL
+            COMMAND ${CMAKE_COMMAND} -E echo_append "Building API Documentation..."
+            COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
+            COMMAND ${CMAKE_COMMAND} -E echo "Done."
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            COMMENT "Generating API documentation with Doxygen"
+            VERBATIM )
+
+endif (DOXYGEN_FOUND AND ${BUILD_DOXYGEN})
+
