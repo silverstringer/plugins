@@ -29,11 +29,11 @@ namespace pl {
         friend class task;
     public:
         void send(const string &data);
-        string m_data ="test";
+        string m_data;
     private:
         void rb_worker();
         void rpc_listen() const;
-        void rb_publish(string data);
+        void rb_publish(const string data);
     private:
         struct {
             string queue_host = "localhost";
@@ -88,7 +88,7 @@ namespace pl {
     }
 
 
-    void task_impl::rb_publish(string data) {
+    void task_impl::rb_publish(const string data) {
 
         try {
             SimplePocoHandler handler(rb_param.queue_host, rb_param.queue_port);
@@ -178,6 +178,7 @@ namespace pl {
     void task::plugin_startup() {
         my->rb_worker();
         my->quit = false;
+        my->m_data = "test";
         my->th = nullptr;
         my->th_data = nullptr;
     }
