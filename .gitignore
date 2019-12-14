@@ -4,6 +4,9 @@
 # IDEs
 /*.idea
 
+#Library
+/library
+
 #Build
 /build
 /cmake-build-debug
