@@ -34,7 +34,8 @@ include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/library/poco/Foundation/i
 set(SOURCE_FILES
         src/task.cpp
         src/rabbitmq_worker.cpp
-        src/SimplePocoHandler.cpp)
+        src/SimplePocoHandler.cpp
+        src/Container.cpp)
 
 
 add_subdirectory(library)
