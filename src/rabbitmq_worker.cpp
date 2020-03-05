@@ -43,7 +43,7 @@
     }
 
     void rabbitmq_worker::stop() {
-        std::cout << "Rabbit quit" << std::endl;
+        std::cout << "Rabbit m_quit" << std::endl;
         poco_handler.quit();
     }
 

@@ -5,6 +5,8 @@
 #include <memory>
 #include <iostream>
 #include <boost/program_options.hpp>
+#include "macros.h"
+
 namespace pl {
     namespace po = boost::program_options;
     using options_description = boost::program_options::options_description;
@@ -12,11 +14,10 @@ namespace pl {
 
 
     class task  {
+        DECLARE_NO_COPY_CLASS(task);
     public:
         explicit task();
-        task(const task&) =delete;
         task(const task&&) =delete;
-        task& operator =(const task&)=delete;
         ~task();
         void run(int ac, char *av[]);
         void stop();
@@ -27,8 +28,8 @@ namespace pl {
         void rpc_listen() const;
         void rb_send(const std::string &data) const;
     private:
-        std::unique_ptr<class task_impl> my;
-        std::unique_ptr<class console_menu> m_menu;
+        std::unique_ptr<class task_impl> pImpl;
+        std::unique_ptr<class console_menu> menu;
 
     };
 

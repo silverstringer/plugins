@@ -3,12 +3,11 @@
 #include "SimplePocoHandler.h"
 #include "thread_safe.hpp"
 #include "rabbitmq_worker.hpp"
-#include  <mutex>
-
+#include "Container.h"
+#include <mutex>
 #include <thread>
 #include <algorithm>
 #include <regex>
-#include <iostream>
 #include <exception>
 #include <vector>
 #include <functional>
@@ -23,7 +22,10 @@ namespace pl {
     using std::exception_ptr;
     using std::vector;
     using threadsafe_queue=thread_safe::threadsafe_queue<string>;
+
     class task_impl {
+        DECLARE_CONSTR_DESTR_DEFAULT_CLASS(task_impl);
+        DECLARE_NO_COPY_CLASS(task_impl);
         thread *th, *th_data;
         shared_ptr<threadsafe_queue> q_from_rabbit;
         friend class task;
@@ -34,7 +36,6 @@ namespace pl {
         void rb_worker();
         void rpc_listen() const;
         void rb_publish(const string data);
-    private:
         struct {
             string queue_host = "localhost";
             string queue_name = "hello";
@@ -43,10 +44,11 @@ namespace pl {
             string queue_login = "guest";
             string queue_passwd = "guest";
         } rb_param;
+
         mutable mutex m_mutex;
         mutable vector<exception_ptr> m_exceptions;
-        variables_map _options;
-        bool quit;
+        variables_map m_options;
+        bool m_quit;
 
     };
 
@@ -129,12 +131,11 @@ namespace pl {
                 delete (th_data);
             }
         }
-        m_data = data;
-        th_data = new thread([&](string data) { rb_publish(m_data); }, m_data);
-        cout << " Send to rabbit::" << m_data<< "\n";
+        m_data = std::move(data);
+        th_data = new thread([&](string m_data) { rb_publish(m_data); }, m_data);
+        cout << " Send to rabbit::" << m_data << "\n";
 //            th_data = new std::thread([&](fc::mutable_variant_object data) { rb_res(data);},wrapper);
     }
-
 
 
     void console_menu::set_program_options(options_description &cfg) {
@@ -149,7 +150,7 @@ namespace pl {
 
     }
 
-    variables_map console_menu::parse_options(int ac, char *av[])  {
+    variables_map console_menu::parse_options(int ac, char *av[]) {
         options_description desc("Allowed options");
         set_program_options(desc);
         variables_map vm;
@@ -165,40 +166,39 @@ namespace pl {
 
     };
 
-    task::task() : my(new task_impl()),m_menu(new console_menu()){}
+    task::task() : pImpl(new task_impl()), menu(new console_menu()) {}
 
     task::~task() {}
 
-    void task::rb_send(const string &data) const { my->send(data); }
+    void task::rb_send(const string &data) const { pImpl->send(data); }
 
-    void task::rb_worker() { my->rb_worker(); }
+    void task::rb_worker() { pImpl->rb_worker(); }
 
-    void task::rpc_listen() const { my->rpc_listen(); }
+    void task::rpc_listen() const { pImpl->rpc_listen(); }
 
     void task::plugin_startup() {
-        my->rb_worker();
-        my->quit = false;
-        my->m_data = "test";
-        my->th = nullptr;
-        my->th_data = nullptr;
+        pImpl->rb_worker();
+        pImpl->m_quit = false;
+        pImpl->m_data = "test";
+        pImpl->th = nullptr;
+        pImpl->th_data = nullptr;
     }
 
     void task::run(int ac, char *av[]) {
-        auto options= m_menu->parse_options(ac,av);
+        auto options = menu->parse_options(ac, av);
         plugin_initialize(options);
         plugin_startup();
 
         try {
-            while (!my->quit){
-                my->rpc_listen();
+            while (!pImpl->m_quit) {
+                pImpl->rpc_listen();
                 rb_send("test");
                 std::this_thread::sleep_for(std::chrono::seconds(10));
             }
 
         }
-        catch(exception &ex)
-        {
-            std::cerr<<ex.what();
+        catch (exception &ex) {
+            std::cerr << ex.what();
         }
 
     }
@@ -208,26 +208,29 @@ namespace pl {
  *
  */
     void task::stop() {
-        my->quit = true;
+        pImpl->m_quit = true;
     }
 
 
     void task::plugin_initialize(const variables_map &options) {
-        my->_options = &options;
-        my->rb_param.queue_name = options.at("queue-name").as<string>();
-        my->rb_param.queue_port = options.at("queue-port").as<uint32_t>();
-        my->rb_param.queue_host = options.at("queue-host").as<string>();
-        my->rb_param.queue_passwd = options.at("passwd").as<string>();
-        my->rb_param.queue_login = options.at("login").as<string>();
-        my->m_data = options.at("data").as<string>();
+        pImpl->m_options = &options;
+        pImpl->rb_param.queue_name = options.at("queue-name").as<string>();
+        pImpl->rb_param.queue_port = options.at("queue-port").as<uint32_t>();
+        pImpl->rb_param.queue_host = options.at("queue-host").as<string>();
+        pImpl->rb_param.queue_passwd = options.at("passwd").as<string>();
+        pImpl->rb_param.queue_login = options.at("login").as<string>();
+        pImpl->m_data = options.at("data").as<string>();
 
     }
 
 }
 
 int main(int ac, char *av[]) {
-    auto my_plugin = std::make_shared<pl::task>();
-    my_plugin->run(ac,av);
 
+    auto my_plugin = std::make_shared<pl::task>();
+
+    Container<pl::task> tw();
+
+    my_plugin->run(ac, av);
 
 };
