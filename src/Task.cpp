@@ -1,9 +1,11 @@
-#include "task.h"
-#include <amqpcpp.h>
+#include "Task.h"
 #include "SimplePocoHandler.h"
 #include "thread_safe.hpp"
 #include "rabbitmq_worker.hpp"
+#include "LoggerCSV.hpp"
 #include "Container.h"
+
+#include <amqpcpp.h>
 #include <mutex>
 #include <thread>
 #include <algorithm>
@@ -23,19 +25,23 @@ namespace pl {
     using std::vector;
     using threadsafe_queue=thread_safe::threadsafe_queue<string>;
 
-    class task_impl {
-        DECLARE_CONSTR_DESTR_DEFAULT_CLASS(task_impl);
-        DECLARE_NO_COPY_CLASS(task_impl);
+    class TaskImpl {
+//        DECLARE_CONSTR_DESTR_DEFAULT_CLASS(TaskImpl);
+        DECLARE_NO_COPY_CLASS(TaskImpl);
+
         thread *th, *th_data;
         shared_ptr<threadsafe_queue> q_from_rabbit;
-        friend class task;
+        friend class Task;
     public:
+        TaskImpl();
+        ~TaskImpl() = default;
         void send(const string &data);
         string m_data;
     private:
         void rb_worker();
         void rpc_listen() const;
         void rb_publish(const string data);
+        void initLogger();
         struct {
             string queue_host = "localhost";
             string queue_name = "hello";
@@ -47,17 +53,36 @@ namespace pl {
 
         mutable mutex m_mutex;
         mutable vector<exception_ptr> m_exceptions;
+        mutable std::unique_ptr<CSVWriter>logger;
         variables_map m_options;
         bool m_quit;
 
+
     };
 
-    void task_impl::rpc_listen() const {
+    TaskImpl::TaskImpl():logger(new CSVWriter()) {
+             initLogger();
+    }
+
+
+    void TaskImpl::initLogger() {
+        string current_filename = "logger.csv";
+        string file_path ="log/"+ current_filename;
+        if(bfs::exists(file_path))
+            bfs::remove(file_path);
+        logger->settings(true,"log", current_filename);
+        vector<string> heading{ "event","data" };
+        logger->addDatainRow(heading.begin(), heading.end());
+    }
+
+    void TaskImpl::rpc_listen() const {
 
         try {
             string temp;
             if (q_from_rabbit->try_pop(temp)) {
-                std::cout << "RECIEVED COMMAND" << temp;
+                std::cout << "Recieved Command" << temp;
+                std::vector<std::string>m1{temp};
+                logger->addDatainRow(m1.begin(),m1.end());
                 auto block = temp;
 
             } else {
@@ -71,7 +96,7 @@ namespace pl {
         }
     }
 
-    void task_impl::rb_worker() {
+    void TaskImpl::rb_worker() {
         q_from_rabbit = std::make_shared<threadsafe_queue>();
 
         /// 1-st thread starts
@@ -90,7 +115,7 @@ namespace pl {
     }
 
 
-    void task_impl::rb_publish(const string data) {
+    void TaskImpl::rb_publish(const string data) {
 
         try {
             SimplePocoHandler handler(rb_param.queue_host, rb_param.queue_port);
@@ -118,13 +143,15 @@ namespace pl {
                 }
                 catch (const std::exception &ex) {
                     cout << ex.what() << std::endl;
+                    std::vector<std::string>m1{"exception",ex.what()};
+                    logger->addDatainRow(m1.begin(),m1.end());
                 }
             }
         }
     }
 
 
-    void task_impl::send(const string &data) {
+    void TaskImpl::send(const string &data) {
         if (th_data != nullptr) {
             if (th_data->joinable()) {
                 th_data->join();
@@ -134,11 +161,14 @@ namespace pl {
         m_data = std::move(data);
         th_data = new thread([&](string m_data) { rb_publish(m_data); }, m_data);
         cout << " Send to rabbit::" << m_data << "\n";
-//            th_data = new std::thread([&](fc::mutable_variant_object data) { rb_res(data);},wrapper);
+
+        std::vector<std::string>m1{"send data", m_data};
+        logger->addDatainRow(m1.begin(),m1.end());
+       //            th_data = new std::thread([&](fc::mutable_variant_object data) { rb_res(data);},wrapper);
     }
 
 
-    void console_menu::set_program_options(options_description &cfg) {
+    void ConsoleMenu::set_program_options(options_description &cfg) {
         cfg.add_options()
                 ("help,h", "produce help message")
                 ("queue-name", po::value<string>()->default_value("hello"), "Name for queue")
@@ -150,7 +180,7 @@ namespace pl {
 
     }
 
-    variables_map console_menu::parse_options(int ac, char *av[]) {
+    variables_map ConsoleMenu::parse_options(int ac, char *av[]) {
         options_description desc("Allowed options");
         set_program_options(desc);
         variables_map vm;
@@ -166,17 +196,20 @@ namespace pl {
 
     };
 
-    task::task() : pImpl(new task_impl()), menu(new console_menu()) {}
+    Task::Task() : pImpl(new TaskImpl()), menu(new ConsoleMenu()) {
 
-    task::~task() {}
 
-    void task::rb_send(const string &data) const { pImpl->send(data); }
+    }
 
-    void task::rb_worker() { pImpl->rb_worker(); }
+    Task::~Task() {}
 
-    void task::rpc_listen() const { pImpl->rpc_listen(); }
+    void Task::rb_send(const string &data) const { pImpl->send(data); }
 
-    void task::plugin_startup() {
+    void Task::rb_worker() { pImpl->rb_worker(); }
+
+    void Task::rpc_listen() const { pImpl->rpc_listen(); }
+
+    void Task::plugin_startup() {
         pImpl->rb_worker();
         pImpl->m_quit = false;
         pImpl->m_data = "test";
@@ -184,7 +217,7 @@ namespace pl {
         pImpl->th_data = nullptr;
     }
 
-    void task::run(int ac, char *av[]) {
+    void Task::run(int ac, char *av[]) {
         auto options = menu->parse_options(ac, av);
         plugin_initialize(options);
         plugin_startup();
@@ -207,12 +240,12 @@ namespace pl {
  * @brief stop server: flag quit is true
  *
  */
-    void task::stop() {
+    void Task::stop() {
         pImpl->m_quit = true;
     }
 
 
-    void task::plugin_initialize(const variables_map &options) {
+    void Task::plugin_initialize(const variables_map &options) {
         pImpl->m_options = &options;
         pImpl->rb_param.queue_name = options.at("queue-name").as<string>();
         pImpl->rb_param.queue_port = options.at("queue-port").as<uint32_t>();
@@ -227,9 +260,9 @@ namespace pl {
 
 int main(int ac, char *av[]) {
 
-    auto my_plugin = std::make_shared<pl::task>();
+    auto my_plugin = std::make_shared<pl::Task>();
 
-    Container<pl::task> tw();
+    Container<pl::Task> tw();
 
     my_plugin->run(ac, av);
 

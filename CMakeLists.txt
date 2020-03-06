@@ -16,7 +16,8 @@ set(BUILD_DOXYGEN FALSE)
 find_package(Boost 1.58 REQUIRED COMPONENTS
         filesystem
         program_options
-        serialization)
+        serialization
+        iostreams)
 
 if (Boost_FOUND)
     include_directories(SYSTEM ${Boost_INCLUDE_DIR})
@@ -32,7 +33,7 @@ include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/library/poco/Foundation/i
 
 
 set(SOURCE_FILES
-        src/task.cpp
+        src/Task.cpp
         src/rabbitmq_worker.cpp
         src/SimplePocoHandler.cpp
         src/Container.cpp)
