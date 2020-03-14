@@ -4,17 +4,21 @@
 #include <iostream>
 #include <boost/program_options.hpp>
 #include "macros.h"
+#include "Sota.h"
 
 
 
-namespace pl {
-    namespace po = boost::program_options;
+namespace plugin {
+    namespace bpo = boost::program_options;
     using options_description = boost::program_options::options_description;
     using variables_map = boost::program_options::variables_map;
 
 
     class Task  {
         DECLARE_NO_COPY_CLASS(Task);
+        using  TaskImplType = std::unique_ptr<class TaskImpl>;
+        using  ConsoleMenuType =  std::unique_ptr<class ConsoleMenu>;
+        using  SotaType = std::unique_ptr<class plugin::sota::SimpleSota>;
     public:
         explicit Task();
         Task(const Task&&) =delete;
@@ -28,10 +32,9 @@ namespace pl {
         void rpc_listen() const;
         void rb_send(const std::string &data) const;
     private:
-        std::unique_ptr<class TaskImpl> pImpl;
-        std::unique_ptr<class ConsoleMenu> menu;
-
-
+        TaskImplType pImpl;
+        ConsoleMenuType menu;
+        SotaType sota;
     };
 
 /**

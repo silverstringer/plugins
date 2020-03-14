@@ -1,7 +1,7 @@
 ## C++ code for RabbitMQ
 ## Requirements
   
-- C++11 compiler support
+- C++14 compiler support
 - Cmake 
 - Doxygen
 - Poco

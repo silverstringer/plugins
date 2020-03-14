@@ -14,7 +14,7 @@
 #include <vector>
 #include <functional>
 
-namespace pl {
+namespace plugin {
     using std::cout;
     using std::function;
     using std::thread;
@@ -23,12 +23,13 @@ namespace pl {
     using std::exception;
     using std::exception_ptr;
     using std::vector;
-    using threadsafe_queue=thread_safe::threadsafe_queue<string>;
+    using threadsafe_queue = thread_safe::threadsafe_queue<string>;
+    using namespace plugin::logger;
+    using namespace plugin::sota;
 
     class TaskImpl {
 //        DECLARE_CONSTR_DESTR_DEFAULT_CLASS(TaskImpl);
         DECLARE_NO_COPY_CLASS(TaskImpl);
-
         thread *th, *th_data;
         shared_ptr<threadsafe_queue> q_from_rabbit;
         friend class Task;
@@ -42,6 +43,7 @@ namespace pl {
         void rpc_listen() const;
         void rb_publish(const string data);
         void initLogger();
+
         struct {
             string queue_host = "localhost";
             string queue_name = "hello";
@@ -60,7 +62,7 @@ namespace pl {
 
     };
 
-    TaskImpl::TaskImpl():logger(new CSVWriter()) {
+    TaskImpl::TaskImpl():logger(std::make_unique<CSVWriter>()) {
              initLogger();
     }
 
@@ -83,8 +85,6 @@ namespace pl {
                 std::cout << "Recieved Command" << temp;
                 std::vector<std::string>m1{temp};
                 logger->addDatainRow(m1.begin(),m1.end());
-                auto block = temp;
-
             } else {
                 cout << "Command not found" << "\n";
             }
@@ -171,12 +171,12 @@ namespace pl {
     void ConsoleMenu::set_program_options(options_description &cfg) {
         cfg.add_options()
                 ("help,h", "produce help message")
-                ("queue-name", po::value<string>()->default_value("hello"), "Name for queue")
-                ("queue-port", po::value<uint32_t>()->default_value(5672), "Port for queue.")
-                ("queue-host", po::value<string>()->default_value("localhost"), "Host for queue")
-                ("login", po::value<string>()->default_value("guest"), "Login for cleints")
-                ("passwd", po::value<string>()->default_value("guest"), "Passwd for clients")
-                ("data", po::value<string>()->default_value("test"), "Data for rb_queue");
+                ("queue-name", bpo::value<string>()->default_value("hello"), "Name for queue")
+                ("queue-port", bpo::value<uint32_t>()->default_value(5672), "Port for queue.")
+                ("queue-host", bpo::value<string>()->default_value("localhost"), "Host for queue")
+                ("login", bpo::value<string>()->default_value("guest"), "Login for cleints")
+                ("passwd", bpo::value<string>()->default_value("guest"), "Passwd for clients")
+                ("data", bpo::value<string>()->default_value("test"), "Data for rb_queue");
 
     }
 
@@ -185,8 +185,8 @@ namespace pl {
         set_program_options(desc);
         variables_map vm;
 
-        po::store(po::parse_command_line(ac, av, desc), vm);
-        po::notify(vm);
+        bpo::store(bpo::parse_command_line(ac, av, desc), vm);
+        bpo::notify(vm);
 
         if (vm.count("help")) {
             std::cout << desc << std::endl;
@@ -196,10 +196,15 @@ namespace pl {
 
     };
 
-    Task::Task() : pImpl(new TaskImpl()), menu(new ConsoleMenu()) {
+    Task::Task() : pImpl(std::make_unique<TaskImpl>()),
+                   menu(std::make_unique<ConsoleMenu>()),
+                   sota (std::make_unique<SimpleSota>(49))
+                   {
+                       sota->setValue();
+                       sota->removeRangeValue();
+                       sota->synchronization();
 
-
-    }
+                   }
 
     Task::~Task() {}
 
@@ -212,7 +217,7 @@ namespace pl {
     void Task::plugin_startup() {
         pImpl->rb_worker();
         pImpl->m_quit = false;
-        pImpl->m_data = "test";
+        pImpl->m_data =sota->toString();
         pImpl->th = nullptr;
         pImpl->th_data = nullptr;
     }
@@ -225,7 +230,7 @@ namespace pl {
         try {
             while (!pImpl->m_quit) {
                 pImpl->rpc_listen();
-                rb_send("test");
+                rb_send(pImpl->m_data);
                 std::this_thread::sleep_for(std::chrono::seconds(10));
             }
 
@@ -258,12 +263,3 @@ namespace pl {
 
 }
 
-int main(int ac, char *av[]) {
-
-    auto my_plugin = std::make_shared<pl::Task>();
-
-    Container<pl::Task> tw();
-
-    my_plugin->run(ac, av);
-
-};

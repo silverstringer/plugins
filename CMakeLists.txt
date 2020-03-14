@@ -8,7 +8,7 @@ set(VERSION_MINOR 1)
 set(VERSION_PATCH 1)
 set(SO_VERSION ${VERSION_MAJOR}.${VERSION_MINOR})
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_FLAGS -pthread)
 set(BUILD_DOXYGEN FALSE)
 
@@ -36,7 +36,8 @@ set(SOURCE_FILES
         src/Task.cpp
         src/rabbitmq_worker.cpp
         src/SimplePocoHandler.cpp
-        src/Container.cpp)
+        src/Container.cpp
+        src/Sota.cpp src/main.cpp)
 
 
 add_subdirectory(library)
