@@ -34,6 +34,7 @@ if [ -n "$1" ]
       if [[ $1 = "-h" ]];then
       echo -e "${GREEN} Help:"
       echo -e "${NORMAL}" "-package, create package ";
+      echo -e "${NORMAL}" "-start, start plugin";
       echo -e  "-h, help";
       exit
 fi
@@ -59,6 +60,13 @@ cmake ..
 make -j4
 
 
+if [ -n "$1" ]
+	then
+      if [[ $1 = "-start" ]]; then
+	echo -e "${GREEN} \t start plugins: ${NORMAL}"
+	./plugins
+	fi
+fi
 if [ -n "$1" ]
 	then
       if [[ $1 = "-package" ]]; then

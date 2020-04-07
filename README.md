@@ -17,9 +17,7 @@
 
   cd plugins
 
-  mkdir build 
-
-  cd build 
+  mkdir build &&  cd build 
 
   cmake .. 
 
@@ -27,7 +25,26 @@
   
 ## Install
   make install
-  
+
+## Build from script
+./build.sh
+
+RUN:
+
+./build.sh -start
+
+##Usage Dockerfile
+docker run -it -p 5672:5672 -p  15672:15672 -h localhost rabbitmq:3
+
+
+docker build -t docker-plugin1 .
+
+docker run -it --rm --network=host docker-plugin1:latest
+
+
+
+
+
 ## Usage
 Start rabbitmq-server with default parametrs
 
