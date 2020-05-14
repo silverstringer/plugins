@@ -33,7 +33,7 @@ RUN:
 
 ./build.sh -start
 
-##Usage Dockerfile
+## Usage Dockerfile
 docker run -it -p 5672:5672 -p  15672:15672 -h localhost rabbitmq:3
 
 
